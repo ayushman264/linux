@@ -170,8 +170,10 @@ detect_vmx_features(void)
 {
 	uint32_t lo, hi;
 
+	
 	/* Pinbased controls */
 	rdmsr(IA32_VMX_PINBASED_CTLS, lo, hi);
+	printk("0x%llx",(uint64_t)(lo | (uint64_t)hi << 32));
 	pr_info("Pinbased Controls MSR: 0x%llx\n",
 		(uint64_t)(lo | (uint64_t)hi << 32));
 	report_capability(pinbased, 5, lo, hi);
@@ -182,17 +184,12 @@ detect_vmx_features(void)
 		(uint64_t)(lo | (uint64_t)hi << 32));
 	report_capability(procbased, 21, lo, hi);
 
-	//BIT 31 determines whether SECONDARY PROC BASED controls are available or not.
-	//(hi >> 31) & 1;
-
-	if(hi &(1 << 31)){
-		rdmsr(IA32_VMX_PROCBASED_CTLS2, lo, hi);
-		pr_info("\nSecondary Procbased Controls MSR: 0x%llx \n",
-			(uint64_t)(lo | (uint64_t)hi << 32));
-		report_capability(secondaryprocbased, 27, lo, hi);
-	}else{
-		pr_info("\nBit 31 is not set");
-	}
+	/* Secondary Procbased controls */
+	rdmsr(IA32_VMX_PROCBASED_CTLS2, lo, hi);
+	pr_info("\nSecondary Procbased Controls MSR: 0x%llx \n",
+		(uint64_t)(lo | (uint64_t)hi << 32));
+	report_capability(secondaryprocbased, 27, lo, hi);
+	
 	
 	
 	/* Exit controls */
