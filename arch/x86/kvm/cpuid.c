@@ -1084,7 +1084,7 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 
 	eax = kvm_rax_read(vcpu);
 	ecx = kvm_rcx_read(vcpu);
-	printk("eax = 0x%x\n", eax);
+	//printk("eax = 0x%x\n", eax);
 	ecx_to_int = (int) ecx;
 
 	if (eax == 0x4FFFFFFF) {
