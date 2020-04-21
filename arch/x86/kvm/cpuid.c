@@ -1054,16 +1054,80 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 }
 EXPORT_SYMBOL_GPL(kvm_cpuid);
 
+extern int kvm_vmx_max_exit_handlers;
+static atomic64_t no_of_exits = ATOMIC_INIT(0);
+static atomic64_t exit_time = ATOMIC_INIT(0);
+static atomic64_t exits[70];
+static atomic64_t times[70];
+
+EXPORT_SYMBOL(no_of_exits);
+EXPORT_SYMBOL(exit_time);
+EXPORT_SYMBOL(exits);
+EXPORT_SYMBOL(times);
+
+
+bool isInvalid(int ecx_value) {
+	if(ecx_value < 0 || ecx_value > 68 || ecx_value == 35 || ecx_value == 38 || ecx_value == 42){
+		return true;
+	}
+	return false;
+}
+
+
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
 	u32 eax, ebx, ecx, edx;
+	int ecx_to_int;
 
 	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
 		return 1;
 
 	eax = kvm_rax_read(vcpu);
 	ecx = kvm_rcx_read(vcpu);
-	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+	printk("eax = 0x%x\n", eax);
+	ecx_to_int = (int) ecx;
+
+	if (eax == 0x4FFFFFFF) {
+		printk("Total Number of exits: %llu \n", atomic64_read(&no_of_exits));
+		eax = atomic64_read(&no_of_exits);
+	} else if (eax == 0x4FFFFFFE) {
+		ebx = (uint32_t)((atomic64_read(&exit_time)) >> 32);
+		ecx = (uint32_t)(atomic64_read(&exit_time) & 0xFFFFFFFFLL);
+	} else if (eax == 0x4FFFFFFD) {
+		if (((int) atomic64_read(&exits[ecx_to_int])) > 0) {
+			printk("Number of exits of type: %d is %lld \n", ecx_to_int, atomic64_read(&exits[ecx_to_int]));
+			eax = atomic64_read(&exits[ecx_to_int]);			
+		}  else if (isInvalid(ecx)) {
+			eax = 0;
+			ebx = 0;
+			ecx = 0;
+			edx = 0xFFFFFFFF;	
+		} else {
+			eax = 0;
+			ebx = 0;
+			ecx = 0;
+			edx = 0;
+		}
+	} else if (eax == 0x4FFFFFFC) {
+		if (((int) atomic64_read(&times[ecx_to_int])) > 0) {
+			printk("Time spent for exits of type: %d is %lld \n", ecx_to_int, atomic64_read(&times[ecx_to_int]));
+			ebx = (uint32_t) ((atomic64_read(&times[ecx_to_int])) >> 32);
+			ecx = (uint32_t) ((atomic64_read(&times[ecx_to_int]) & 0xFFFFFFFF ));			
+		}  else if (isInvalid(ecx)) {
+			eax = 0;
+			ebx = 0;
+			ecx = 0;
+			edx = 0xFFFFFFFF;	
+		} else {
+			eax = 0;
+			ebx = 0;
+			ecx = 0;
+			edx = 0;
+		}
+	} else {
+		kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+	}
+
 	kvm_rax_write(vcpu, eax);
 	kvm_rbx_write(vcpu, ebx);
 	kvm_rcx_write(vcpu, ecx);
